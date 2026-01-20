@@ -24,6 +24,36 @@ struct Bullet {
     float angle;
 };
 
+struct Zombie {
+    Vector2 position;
+    float speed;
+    float angle;
+};
+
+Rectangle spawnzombies1 = {-50, 50, 50, 50};
+Rectangle spawnzombies2 = {1350, 50, 50, 50};
+
+void spawnzombies(std::vector<Zombie>& zombies, int maxZombies)
+{
+    while (zombies.size() < maxZombies)
+    {
+        Zombie z;
+        int spawnnumber = GetRandomValue(1, 2);
+
+        if (spawnnumber == 1)
+            z.position = { spawnzombies1.x, spawnzombies1.y };
+        else
+            z.position = { spawnzombies2.x, spawnzombies2.y };
+
+        z.speed = 100.0f;
+        z.angle = 0.0f;
+
+        zombies.push_back(z);
+    }
+}
+
+
+
 int main() {
     float master_volume = 0.5f;
 
@@ -87,7 +117,9 @@ int main() {
     // GAME2 Variables
     Texture2D backgroundgame2 = LoadTexture("assets/sprites/background/backgroundgame2.png");
     Texture2D dooriron = LoadTexture("assets/sprites/dooriron.png");
+    Texture2D zombie1 = LoadTexture("assets/sprites/zombie1.png");
     bool teleport1done = false;
+    std::vector<Zombie> zombies;
 
     // Setting Objects //
     Rectangle rgun1 = {((float)GetScreenWidth() / 2) - 70, (float)GetScreenHeight() / 2, (float)gun1.width * 2.0f, (float)gun1.height * 2.0f};
@@ -520,6 +552,35 @@ DrawTexturePro(bulletTexture, bulletRec, Rectangle{bulletPos.x, bulletPos.y, (fl
 }
 
 	// Inimigos
+	spawnzombies(zombies, 10);
+
+	
+for (auto &z : zombies) {
+    Vector2 direction = {
+        playerCenter.x - z.position.x,
+        playerCenter.y - z.position.y
+    };
+
+    float distance = sqrtf(direction.x*direction.x +
+                            direction.y*direction.y);
+
+    if (distance > 5.0f) {
+        direction.x /= distance;
+        direction.y /= distance;
+
+        z.position.x += direction.x * z.speed * dt;
+        z.position.y += direction.y * z.speed * dt;
+    }
+
+    DrawTextureEx(
+    zombie1,
+    z.position,
+    0.0f,     // rotação
+    5.0f,    // escala
+    WHITE
+);
+}
+
 	
 
     // Debug
@@ -544,4 +605,6 @@ DrawTexturePro(bulletTexture, bulletRec, Rectangle{bulletPos.x, bulletPos.y, (fl
 CloseWindow();
 return 0;
 } // End main
+
+
 
