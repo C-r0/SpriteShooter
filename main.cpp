@@ -12,7 +12,8 @@ enum GameState {
     OPTIONS,
     GAME1,
     GAME2,
-    GAME3
+    GAME3,
+    FINAL
 };
 
 struct Bullet {
@@ -28,22 +29,32 @@ struct Zombie {
     Vector2 position;
     float speed;
     float angle;
+    bool alive = true;
 };
+
+bool enemiesdefeated = false;
 
 Rectangle spawnzombies1 = {-50, 50, 50, 50};
 Rectangle spawnzombies2 = {1350, 50, 50, 50};
 
 void spawnzombies(std::vector<Zombie>& zombies, int maxZombies)
-{
+{	
+	if (zombies.size() >= maxZombies) enemiesdefeated = true;
     while (zombies.size() < maxZombies)
     {
         Zombie z;
         int spawnnumber = GetRandomValue(1, 2);
 
         if (spawnnumber == 1)
-            z.position = { spawnzombies1.x, spawnzombies1.y };
-        else
-            z.position = { spawnzombies2.x, spawnzombies2.y };
+    z.position = {
+        spawnzombies1.x + GetRandomValue(-80, 80),
+        spawnzombies1.y + GetRandomValue(-80, 80)
+    };
+else
+    z.position = {
+        spawnzombies2.x + GetRandomValue(-80, 80),
+        spawnzombies2.y + GetRandomValue(-80, 80)
+    };
 
         z.speed = 100.0f;
         z.angle = 0.0f;
@@ -97,6 +108,7 @@ int main() {
     // Games Variables //
     bool game1 = false;
     bool game2 = false;
+    bool game3 = false;
     bool musicStarted = false;
 
     // MENU Variables //
@@ -112,7 +124,6 @@ int main() {
     bool gunPicked = false;
     bool hasGun = false;
     bool dooropen = false;
-    bool enemiesdefeated = false;
 
     // GAME2 Variables
     Texture2D backgroundgame2 = LoadTexture("assets/sprites/background/backgroundgame2.png");
@@ -120,6 +131,9 @@ int main() {
     Texture2D zombie1 = LoadTexture("assets/sprites/zombie1.png");
     bool teleport1done = false;
     std::vector<Zombie> zombies;
+    
+    // GAME3 Variables
+    bool teleport2done = false;
 
     // Setting Objects //
     Rectangle rgun1 = {((float)GetScreenWidth() / 2) - 70, (float)GetScreenHeight() / 2, (float)gun1.width * 2.0f, (float)gun1.height * 2.0f};
@@ -181,9 +195,15 @@ UpdateMusicStream(monument);
             float buttonPlayY = (GetScreenHeight() / 2);
             Rectangle playButton = {buttonPlayX, buttonPlayY, (float)textWidth, (float)fontSize};
             if (CheckCollisionPointRec(mousePos, playButton)) {
-                DrawText("Play", buttonPlayX, buttonPlayY, fontSize, Fade(YELLOW, menuAlpha));
-                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) currentState = GAME1;
-            } else DrawText("Play", buttonPlayX, buttonPlayY, fontSize, Fade(WHITE, menuAlpha));
+    DrawText("Play", buttonPlayX, buttonPlayY, fontSize, Fade(YELLOW, menuAlpha));
+
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        currentState = GAME1;
+    }
+} else {
+    DrawText("Play", buttonPlayX, buttonPlayY, fontSize, Fade(WHITE, menuAlpha));
+}
+
 
             // Botão Options
             int textWidth2 = MeasureText("Options", fontSize);
@@ -296,6 +316,8 @@ if (currentState == OPTIONS)
                 currentState = GAME1;
             else if (game2 == true)
                 currentState = GAME2;
+            else if (game3 == true)
+				currentState = GAME3;
             else
                 currentState = MENU;
         }
@@ -438,6 +460,10 @@ if (currentState == GAME2) {
 	game1 = false;
     game2 = true;
     dooropen = false;
+    
+    if (IsKeyPressed(KEY_F1)) debugMode = !debugMode;
+    if (IsKeyPressed(KEY_ESCAPE)) currentState = OPTIONS;
+    
     Vector2 playerCenter = {
         rplayer.x + rplayer.width / 2,
         rplayer.y + rplayer.height / 2
@@ -551,20 +577,23 @@ Vector2 origin = { bulletFrameWidth/2.0f, bulletFrameHeight/2.0f };
 DrawTexturePro(bulletTexture, bulletRec, Rectangle{bulletPos.x, bulletPos.y, (float)bulletFrameWidth, (float)bulletFrameHeight}, origin, b.angle*180.0f/PI, WHITE);
 }
 
-	// Inimigos
-	spawnzombies(zombies, 10);
+// Inimigos
+spawnzombies(zombies, 10);
 
-	
-for (auto &z : zombies) {
+for (auto &z : zombies)
+{
+    if (!z.alive) continue; 
+
     Vector2 direction = {
         playerCenter.x - z.position.x,
         playerCenter.y - z.position.y
     };
 
-    float distance = sqrtf(direction.x*direction.x +
-                            direction.y*direction.y);
+    float distance = sqrtf(direction.x * direction.x +
+                           direction.y * direction.y);
 
-    if (distance > 5.0f) {
+    if (distance > 5.0f)
+    {
         direction.x /= distance;
         direction.y /= distance;
 
@@ -572,15 +601,65 @@ for (auto &z : zombies) {
         z.position.y += direction.y * z.speed * dt;
     }
 
-    DrawTextureEx(
-    zombie1,
-    z.position,
-    0.0f,     // rotação
-    5.0f,    // escala
-    WHITE
-);
+    float zAngle = atan2f(direction.y, direction.x) * RAD2DEG;
+
+    Vector2 zombieCenter = {
+        z.position.x + (zombie1.width * 5.0f) / 2,
+        z.position.y + (zombie1.height * 5.0f) / 2
+    };
+
+    DrawTexturePro(
+        zombie1,
+        Rectangle{0, 0, (float)zombie1.width, (float)zombie1.height},
+        Rectangle{
+            zombieCenter.x,
+            zombieCenter.y,
+            zombie1.width * 5.0f,
+            zombie1.height * 5.0f
+        },
+        Vector2{
+            zombie1.width * 2.5f,
+            zombie1.height * 2.5f
+        },
+        zAngle,
+        WHITE
+    );
+
+    Rectangle rzombie = {
+        zombieCenter.x - zombie1.width * 2.5f,
+        zombieCenter.y - zombie1.height * 2.5f,
+        zombie1.width * 5.0f,
+        zombie1.height * 5.0f
+    };
+    
+    for (auto &b : bullets)
+    {
+        if (!b.active) continue;
+
+        Rectangle rbullet = {
+            b.position.x - bulletFrameWidth / 2.0f,
+            b.position.y - bulletFrameHeight / 2.0f,
+            (float)bulletFrameWidth,
+            (float)bulletFrameHeight
+        };
+
+        if (CheckCollisionRecs(rzombie, rbullet))
+        {
+            b.active = false;
+            z.alive = false;
+            break; // zumbi morreu, sai do loop de balas
+        }
+    }
+
+    if (debugMode)
+    {
+        DrawRectangleLinesEx(rzombie, 2, RED);
+        DrawCircleV(zombieCenter, 4, BLUE);
+    }
 }
 
+
+	
 	
 
     // Debug
@@ -597,6 +676,244 @@ for (auto &z : zombies) {
         2.0f,
         WHITE
     );
+}
+
+///////////////////////////////////////////////////////
+// GAME3
+if (currentState == GAME3) {
+	game1 = false;
+    game2 = false;
+    game3 = true;
+    dooropen = false;
+    
+    if (IsKeyPressed(KEY_F1)) debugMode = !debugMode;
+    if (IsKeyPressed(KEY_ESCAPE)) currentState = OPTIONS;
+    
+    Vector2 playerCenter = {
+        rplayer.x + rplayer.width / 2,
+        rplayer.y + rplayer.height / 2
+    };
+
+    float angle = atan2f(
+        mousePos.y - playerCenter.y,
+        mousePos.x - playerCenter.x
+    );
+    
+
+    if (!teleport2done) {
+        rplayer = {609, 611, rplayer.width, rplayer.height};
+        teleport2done = true;
+    }
+
+    // Background
+    DrawTexturePro(backgroundgame2,
+                   Rectangle{0,0,(float)backgroundgame2.width,(float)backgroundgame2.height},
+                   Rectangle{0,0,(float)GetScreenWidth(),(float)GetScreenHeight()},
+                   Vector2{0,0}, 0.0f, WHITE);
+
+    // Porta (rdoor2)
+    DrawTexturePro(dooriron,
+                   Rectangle{0,0,(float)dooriron.width,(float)dooriron.height},
+                   Rectangle{rdoor2.x,rdoor2.y,rdoor2.width,rdoor2.height},
+                   Vector2{0,0}, 0.0f, WHITE);
+
+    // Colisão com porta GAME3
+    if (CheckCollisionRecs(rplayer, rdoor2)) {
+        if (!enemiesdefeated) DrawText("(E)", rdoor2.x + 48, rdoor2.y, 20, RED);
+        else {
+            DrawText("(E)", rdoor2.x + 48, rdoor2.y, 20, WHITE);
+            if (IsKeyPressed(KEY_E)) {
+                dooropen = true;
+                currentState = FINAL;
+            }
+        }
+    }
+    
+
+
+    
+            // Tiro
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+    Bullet b;
+    b.position = playerCenter;
+    float bulletSpeed = 1500.0f;
+    b.speed = { cosf(angle)*bulletSpeed, sinf(angle)*bulletSpeed };
+    b.active = true;
+    b.currentFrame = 0;
+    b.frameTime = 0.0f;
+    b.angle = angle; 
+    bullets.push_back(b);
+    PlaySound(shot);
+    } 
+
+    // Player
+if (hasGun) {
+    DrawTexturePro(playergun1,
+        Rectangle{0,0,(float)player.width,(float)player.height},
+        Rectangle{playerCenter.x, playerCenter.y, rplayer.width, rplayer.height},
+        Vector2{rplayer.width/2, rplayer.height/2},
+        angle * 180.0f / PI,
+        WHITE
+    );
+} else {
+    DrawTexturePro(player,
+        Rectangle{0,0,(float)player.width,(float)player.height},
+        Rectangle{playerCenter.x, playerCenter.y, rplayer.width, rplayer.height},
+        Vector2{rplayer.width/2, rplayer.height/2},
+        angle * 180.0f / PI,
+        WHITE
+    );
+}
+
+
+    // Movimento
+    float speed = 200.0f;
+    if (IsKeyDown(KEY_W)) rplayer.y -= speed*dt;
+    if (IsKeyDown(KEY_S)) rplayer.y += speed*dt;
+    if (IsKeyDown(KEY_A)) rplayer.x -= speed*dt;
+    if (IsKeyDown(KEY_D)) rplayer.x += speed*dt;
+
+    // Limitar Player
+    if (rplayer.x < 0) rplayer.x = 0;
+    if (rplayer.y < 100) rplayer.y = 100;
+    if (rplayer.x + rplayer.width > GetScreenWidth()) rplayer.x = GetScreenWidth() - rplayer.width;
+    if (rplayer.y + rplayer.height > GetScreenHeight()) rplayer.y = GetScreenHeight() - rplayer.height;
+    
+  // Atualiza e desenha tiros
+    for (auto &b : bullets) {
+        if (!b.active) continue;
+        b.position.x += b.speed.x * dt;
+        b.position.y += b.speed.y * dt;
+
+        b.frameTime += dt;
+        if (b.frameTime >= 0.05f) {
+            b.frameTime = 0.0f;
+            b.currentFrame++;
+            if (b.currentFrame >= bulletFrames) b.currentFrame = 0;
+        }
+
+        if (b.position.x < 0 || b.position.x > GetScreenWidth() ||
+            b.position.y < 0 || b.position.y > GetScreenHeight()) b.active = false;
+
+        Rectangle bulletRec = { float(b.currentFrame*bulletFrameWidth), 0.0f, float(bulletFrameWidth), float(bulletFrameHeight) };
+Vector2 bulletPos = { b.position.x - bulletFrameWidth/2.0f, b.position.y - bulletFrameHeight/2.0f };
+Vector2 origin = { bulletFrameWidth/2.0f, bulletFrameHeight/2.0f };
+
+DrawTexturePro(bulletTexture, bulletRec, Rectangle{bulletPos.x, bulletPos.y, (float)bulletFrameWidth, (float)bulletFrameHeight}, origin, b.angle*180.0f/PI, WHITE);
+}
+
+// Inimigos
+spawnzombies(zombies, 20);
+
+for (auto &z : zombies)
+{
+    if (!z.alive) continue; 
+
+    Vector2 direction = {
+        playerCenter.x - z.position.x,
+        playerCenter.y - z.position.y
+    };
+
+    float distance = sqrtf(direction.x * direction.x +
+                           direction.y * direction.y);
+
+    if (distance > 5.0f)
+    {
+        direction.x /= distance;
+        direction.y /= distance;
+
+        z.position.x += direction.x * z.speed * dt;
+        z.position.y += direction.y * z.speed * dt;
+    }
+
+    float zAngle = atan2f(direction.y, direction.x) * RAD2DEG;
+
+    Vector2 zombieCenter = {
+        z.position.x + (zombie1.width * 5.0f) / 2,
+        z.position.y + (zombie1.height * 5.0f) / 2
+    };
+
+    DrawTexturePro(
+        zombie1,
+        Rectangle{0, 0, (float)zombie1.width, (float)zombie1.height},
+        Rectangle{
+            zombieCenter.x,
+            zombieCenter.y,
+            zombie1.width * 5.0f,
+            zombie1.height * 5.0f
+        },
+        Vector2{
+            zombie1.width * 2.5f,
+            zombie1.height * 2.5f
+        },
+        zAngle,
+        WHITE
+    );
+
+    Rectangle rzombie = {
+        zombieCenter.x - zombie1.width * 2.5f,
+        zombieCenter.y - zombie1.height * 2.5f,
+        zombie1.width * 5.0f,
+        zombie1.height * 5.0f
+    };
+    
+    for (auto &b : bullets)
+    {
+        if (!b.active) continue;
+
+        Rectangle rbullet = {
+            b.position.x - bulletFrameWidth / 2.0f,
+            b.position.y - bulletFrameHeight / 2.0f,
+            (float)bulletFrameWidth,
+            (float)bulletFrameHeight
+        };
+
+        if (CheckCollisionRecs(rzombie, rbullet))
+        {
+            b.active = false;
+            z.alive = false;
+            break; // zumbi morreu, sai do loop de balas
+        }
+    }
+
+    if (debugMode)
+    {
+        DrawRectangleLinesEx(rzombie, 2, RED);
+        DrawCircleV(zombieCenter, 4, BLUE);
+    }
+}
+
+
+	
+	
+
+    // Debug
+    if (debugMode) {
+        DrawRectangleLinesEx(rplayer, 2, RED);
+        DrawCircle(playerCenter.x, playerCenter.y, 5, BLUE);
+        DrawRectangleLinesEx(rdoor2, 2, RED);
+        if (!gunPicked) DrawRectangleLinesEx(rgun1, 2, RED);
+    }
+
+    DrawTextureEx(mouse,
+        Vector2{mousePos.x - 8, mousePos.y - 8},
+        0.0f,
+        2.0f,
+        WHITE
+    );
+}
+
+if (currentState == FINAL) {
+	const char *text = "Thanks for Playing!";
+int fontSize = 40;
+
+int textWidth = MeasureText(text, fontSize);
+
+int x = (GetScreenWidth() - textWidth) / 2;
+int y = (GetScreenHeight() - fontSize) / 2;
+
+DrawText(text, x, y, fontSize, WHITE);
+
 }
 
     EndDrawing();
