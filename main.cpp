@@ -82,6 +82,8 @@ bool teleportdone;
 float angle;
 float speed;
 float dt;
+constexpr int PLAYER_SPAWN_X = 609;
+constexpr int PLAYER_SPAWN_Y = 611;
 void DrawPlayer() {
     dt = GetFrameTime();
     playerCenter = { rplayer.x + rplayer.width / 2, rplayer.y + rplayer.height / 2 };
@@ -161,7 +163,7 @@ void DrawPlayer() {
     bullets.erase(std::remove_if(bullets.begin(), bullets.end(), [](Bullet& b) { return !b.active; }), bullets.end());
 
     if (!teleportdone) {
-        rplayer = {609, 611, rplayer.width, rplayer.height};
+        rplayer = {PLAYER_SPAWN_X, PLAYER_SPAWN_Y, rplayer.width, rplayer.height};
         teleportdone = true;
     }
 }
